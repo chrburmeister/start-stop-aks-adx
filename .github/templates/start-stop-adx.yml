@@ -36,14 +36,14 @@ jobs:
           } else {
             $expected_status = 'Running'
           }
+          
+          $kusto_cluster = az kusto cluster show --name "$env:adx_cluster_name" --resource-group "$env:adx_cluster_resource_group_name" | ConvertFrom-Json
 
-          $cluster_status = az aks show --name "$env:adx_cluster_name" --resource-group "$env:adx_cluster_resource_group_name" | ConvertFrom-Json
-
-          if($cluster_status.powerState.code -ne $expected_status) {
-            Write-Output "performing action - $($env:adx_cluster_action) - on AKS cluster: $($env:adx_cluster_name) - resource group: $($env:adx_cluster_resource_group_name)"
-            az aks "$env:adx_cluster_action" --name "$env:adx_cluster_name" --resource-group "$env:adx_cluster_resource_group_name"
+          if($kusto_cluster.state -ne $expected_status) {
+            Write-Output "performing action - $($env:adx_cluster_action) - on ADX cluster: $($env:adx_cluster_name) - resource group: $($env:adx_cluster_resource_group_name)"
+            az kusto cluster "$($env:adx_cluster_action)" --name "$env:adx_cluster_name" --resource-group "$env:adx_cluster_resource_group_name" --no-wait
           } else {
-            Write-Output "AKS cluster: $($env:adx_cluster_name) - resource group: $($env:adx_cluster_resource_group_name) - is already in the expected state: $($expected_status)"
+            Write-Output "ADX cluster: $($env:adx_cluster_name) - resource group: $($env:adx_cluster_resource_group_name) - is already in the expected state: $($expected_status)"
           }
         env:
           adx_cluster_name: ${{ inputs.adx_cluster_name }}
