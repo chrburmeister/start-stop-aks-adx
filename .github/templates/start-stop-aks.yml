@@ -1,0 +1,20 @@
+on:
+  workflow_call:
+    inputs:
+      aks_cluster_name:
+        required: true
+        type: string
+      aks_cluster_resource_group_name:
+        required: true
+        type: string
+      aks_cluster_action:
+        required: true
+        type: string
+        default: 'stop'
+      options:
+        - 'start'
+        - 'stop'
+        
+jobs:
+  start-stop-aks:
+    runs-on: ubuntu-latest
