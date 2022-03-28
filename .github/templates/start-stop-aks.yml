@@ -1,6 +1,10 @@
 on:
   workflow_call:
     inputs:
+      runner_os:
+        required: false
+        type: string
+        default: ubuntu-20.04
       aks_cluster_name:
         required: true
         type: string
@@ -16,5 +20,37 @@ on:
         - 'stop'
         
 jobs:
-  start-stop-aks:
-    runs-on: ubuntu-latest
+  start_stop_aks:
+    runs-on: ${{ inputs.runner_os }}
+    step:
+      - name: az login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: start stop aks
+        shell: pwsh
+        run: |
+          if($env:aks_cluster_action -eq 'stop') {
+            $expected_status = 'Stopped'
+          } else {
+            $expected_status = 'Running'
+          }
+
+          $cluster_status = az aks show --name "$env:aks_cluster_name" --resource-group "$env:aks_cluster_resource_group_name" | ConvertFrom-Json
+
+          if($cluster_status.powerState.code -ne $expected_status) {
+            Write-Output "performing action - $($env:aks_cluster_action) - on AKS cluster: $($env:aks_cluster_name) - resource group: $($env:aks_cluster_resource_group_name)"
+            az aks "$env:aks_cluster_action" --name "$env:aks_cluster_name" --resource-group "$env:aks_cluster_resource_group_name"
+          } else {
+            Write-Output "AKS cluster: $($env:aks_cluster_name) - resource group: $($env:aks_cluster_resource_group_name) - is already in the expected state: $($expected_status)"
+          }
+        env:
+          aks_cluster_name: ${{ inputs.aks_cluster_name }}
+          aks_cluster_resource_group_name: ${{ inputs.aks_cluster_resource_group_name }}
+          aks_cluster_action: ${{ inputs.aks_cluster_action }}
+      
+      - name: az logout
+        run: |
+              az logout
+        if: always()

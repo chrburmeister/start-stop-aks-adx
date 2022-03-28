@@ -1,0 +1,56 @@
+on:
+  workflow_call:
+    inputs:
+      runner_os:
+        required: false
+        type: string
+        default: ubuntu-20.04
+      adx_cluster_name:
+        required: true
+        type: string
+      adx_cluster_resource_group_name:
+        required: true
+        type: string
+      adx_cluster_action:
+        required: true
+        type: string
+        default: 'stop'
+      options:
+        - 'start'
+        - 'stop'
+        
+jobs:
+  start_stop_aks:
+    runs-on: ${{ inputs.runner_os }}
+    step:
+      - name: az login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: start stop aks
+        shell: pwsh
+        run: |
+          if($env:adx_cluster_action -eq 'stop') {
+            $expected_status = 'Stopped'
+          } else {
+            $expected_status = 'Running'
+          }
+
+          $cluster_status = az aks show --name "$env:adx_cluster_name" --resource-group "$env:adx_cluster_resource_group_name" | ConvertFrom-Json
+
+          if($cluster_status.powerState.code -ne $expected_status) {
+            Write-Output "performing action - $($env:adx_cluster_action) - on AKS cluster: $($env:adx_cluster_name) - resource group: $($env:adx_cluster_resource_group_name)"
+            az aks "$env:adx_cluster_action" --name "$env:adx_cluster_name" --resource-group "$env:adx_cluster_resource_group_name"
+          } else {
+            Write-Output "AKS cluster: $($env:adx_cluster_name) - resource group: $($env:adx_cluster_resource_group_name) - is already in the expected state: $($expected_status)"
+          }
+        env:
+          adx_cluster_name: ${{ inputs.adx_cluster_name }}
+          adx_cluster_resource_group_name: ${{ inputs.adx_cluster_resource_group_name }}
+          adx_cluster_action: ${{ inputs.adx_cluster_action }}
+      
+      - name: az logout
+        run: |
+              az logout
+        if: always()
