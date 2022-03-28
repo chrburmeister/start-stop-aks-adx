@@ -1,0 +1,46 @@
+parameters:
+- name: worker_image
+  default: 'ubuntu-20.04'
+- name: adx_cluster_name
+- name: adx_cluster_resource_group_name
+- name: adx_cluster_action
+  default: stop
+  values:
+    - 'stop'
+    - 'start'
+- name: azurerm_service_connection_name
+
+stages:
+- stage: stop_data_explorer_cluster
+  pool: 
+    vmImage: ${{ parameters.vm_image }}
+  jobs:
+  - job: stop_data_explorer_cluster
+    steps:
+      - checkout: none
+
+      - task: AzureCLI@2
+        displayName: 'start cluster'
+        inputs:
+          azureSubscription: ${{ parameters.azurerm_service_connection_name }}
+          scriptType: pscore
+          scriptLocation: inlineScript
+          inlineScript: |
+            if($env:adx_cluster_action -eq 'stop') {
+              $expected_status = 'Stopped'
+            } else {
+              $expected_status = 'Running'
+            }
+            
+            $kusto_cluster = az kusto cluster show --name "$env:adx_cluster_name" --resource-group "$env:adx_cluster_resource_group_name" | ConvertFrom-Json
+
+            if($kusto_cluster.state -ne $expected_status) {
+              Write-Output "performing action - $($env:adx_cluster_action) - on ADX cluster: $($env:adx_cluster_name) - resource group: $($env:adx_cluster_resource_group_name)"
+              az kusto cluster "$($env:adx_cluster_action)" --name "$env:adx_cluster_name" --resource-group "$env:adx_cluster_resource_group_name" --no-wait
+            } else {
+              Write-Output "ADX cluster: $($env:adx_cluster_name) - resource group: $($env:adx_cluster_resource_group_name) - is already in the expected state: $($expected_status)"
+            }
+        env:
+          adx_cluster_name: ${{ parameters.adx_cluster_name }}
+          adx_cluster_resource_group_name: ${{ parameters.adx_cluster_resource_group_name }}
+          adx_cluster_action: ${{ parameters.adx_cluster_action }}
