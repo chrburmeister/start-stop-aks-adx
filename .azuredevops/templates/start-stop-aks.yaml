@@ -1,3 +1,4 @@
+
 parameters:
 - name: worker_image
   default: 'ubuntu-20.04'
@@ -16,7 +17,7 @@ stages:
   pool: 
     vmImage: ${{ parameters.worker_image }}
   jobs:
-  - job: start_aks_cluster
+  - job: start_stop_aks_cluster
     steps:
       - checkout: none
 
@@ -35,8 +36,8 @@ stages:
 
             $cluster_status = az aks show --name "$env:aks_cluster_name" --resource-group "$env:aks_cluster_resource_group_name" | ConvertFrom-Json
 
-            if($cluster_status.powerState.code -eq $expected_status) {
-              Write-Output "starting AKS cluster: $($env:aks_cluster_name) - resource group: $($env:aks_cluster_resource_group_name)"
+            if($cluster_status.powerState.code -ne $expected_status) {
+              Write-Output "performing action - $($env:aks_cluster_action) - on AKS cluster: $($env:aks_cluster_name) - resource group: $($env:aks_cluster_resource_group_name)"
               az aks "$env:aks_cluster_action" --name "$env:aks_cluster_name" --resource-group "$env:aks_cluster_resource_group_name"
             } else {
               Write-Output "AKS cluster: $($env:aks_cluster_name) - resource group: $($env:aks_cluster_resource_group_name) - is already in the expected state: $($expected_status)"
